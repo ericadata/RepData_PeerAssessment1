@@ -7,19 +7,86 @@ output:
 
 
 ## Loading and preprocessing the data
-
-
-
+After forking and cloning [this](https://github.com/rdpeng/RepData_PeerAssessment1) repository, set the working directory in R.   
+```{r eval=FALSE}
+setwd("./RepData_PeerAssessment1") 
+```
+Load the data into R:
+```{r}
+activity <- read.csv(file=unzip("activity.zip"))  
+activity$date <- as.Date(as.character(activity$date, "%Y-%m-%d"))
+```
 ## What is mean total number of steps taken per day?
+The total number of steps taken per day:
+```{r}
+with(activity, tapply(steps, date, sum, na.rm=T))
+```
+A histogram of the total number of steps taken per day:
+```{r histogram}
+sumsteps <- aggregate(steps~date, data=activity, sum)
+hist(sumsteps$steps, col="red", main="Total Number of Steps per Day",
+     xlab="Steps per Day")   
+```   
 
-
-
+The mean and median of the total number of steps taken per day:
+```{r}
+mean(sumsteps$steps)
+median(sumsteps$steps)
+```
 ## What is the average daily activity pattern?
+Calculation of the average number of steps per interval followed by a time series plot of the 5-minute interval and the average number of steps:  
+```{r time series plot}
+meansteps <- aggregate(steps~interval, data=activity, mean) 
+with(meansteps, plot(interval, steps, type="l", 
+    main="Average Number of Steps Taken", ylab="Average steps"))   
+```   
 
-
-
+The 5-minute interval with the maximum number of steps:
+```{r}
+meansteps[which.max(meansteps$steps), 1]  
+```
 ## Imputing missing values
+Total number of NA values:
+```{r}
+sum(is.na(activity))
+```
+Imputing the NA values with the median of the steps per interval:
+```{r}
+mediansteps <- aggregate(steps~interval, data=activity, median)
+missing <- activity[is.na(activity$steps), ]
+imputed1 <- merge(missing, mediansteps, by="interval")
+imputed1 <- imputed1[order(imputed1$date), ]
+activity1 <- activity
+activity1[is.na(activity1$steps), 1] <- imputed1$steps.y
+```
+Histogram of the total number of steps taken each day from imputed data:
+```{r histogram with imputed data}
+newsumsteps <- aggregate(steps~date, data=activity1, sum)
+with(newsumsteps, hist(steps, col="red"))  
+```  
 
+The mean and median of the total number of steps taken per day:
+```{r}
+mean(newsumsteps$steps)
+median(newsumsteps$steps)
+```
+Imputing the data caused the mean and median to both decrease.  
 
-
+The total number of steps per day using the imputed data:
+```{r}
+with(newsumsteps, tapply(steps, date, sum, na.rm=T))
+```
 ## Are there differences in activity patterns between weekdays and weekends?
+Create the new column with factor variable with levels weekend and weekday:
+```{r}
+activity2 <- activity1
+activity2$week <- ifelse(weekdays(activity2$date)=="Saturday" | 
+            weekdays(activity2$date)=="Sunday", "weekend", "weekday")
+activity2$week <- as.factor(activity2$week)
+```
+A time series panel plot of the 5-minute interval and the average number of steps taken, averaged across all weekday days and weekend days:
+```{r panel plot}
+meansteps2 <- aggregate(steps~interval + week, data=activity2, mean)
+library(lattice)
+xyplot(steps~interval | week, data=meansteps2, type = "l", layout=c(1, 2))
+```
